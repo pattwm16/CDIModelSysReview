@@ -1,0 +1,237 @@
+---
+title: 'CDI Model Systematic Review: Creating tables and figures'
+output:
+  html_document:
+    df_print: paged
+  word_document: default
+---
+
+Obligatory project downloads and utilities.
+
+```{r, settings}
+library(tidyverse)
+library(ggthemes)
+library(readxl)
+library(stringr)
+library(kableExtra)
+library(flextable)
+library(formattable)
+library(ggrepel)
+
+# for reproducibility, variable paths are copied below
+file_loc <- "~/Desktop/Research/Deshpande Group (C difficile)/CDI Prediction Model Meta Analysis/Systematic Review of Methodology : Reporting/Figures/Analysis"
+data_path <- "../figures/2023-01-03_Figure1_tidyData.xlsx"
+
+
+# set working directory to file source for relative paths
+setwd(file_loc)
+```
+
+First, read in data from tidied data analysis file.
+
+```{r, data_loading}
+# read in tidied data as tibble object
+(fig2_data <- as_tibble(read_excel(data_path, 
+                                   "predictors")))  # 'predictors' sheet
+
+(fig3_data <- as_tibble(read_excel(data_path, 
+                                   "bystudy",       # 'bystudy' sheet
+                                   skip = 1)) %>%   # skip header line
+   select(auth, n_preds, n_study_train, n_study_total, n_event_total) %>%
+   mutate(obs_per_coef = n_study_total / n_preds,   # calc obs / coeff
+          events_per_coef = n_event_total / n_preds,# calc evnts / coeff
+          validated = !is.na(n_study_train))
+  )
+
+fig3_header <- as_tibble(names(read_excel(data_path, 
+                                           "bystudy"))) # extract header
+```
+
+Now, we create figures 2 and 3 from the manuscript. Figure 1 was generated using a [Shiny App](https://www.eshackathon.org/software/PRISMA2020.html).
+
+- Figure 2 shows the count of predictors in 10 models of C. difficile infection.
+- Figure 3 shows the number of events (CDI infection) using a log axis vs. number of model coefficients.
+
+```{r, theme_settings}
+# plotting minimal graphics
+theme_set(theme_tufte(ticks = F, base_size = 14))
+plot_color <- "grey"
+```
+
+```{r, fig2}
+# figure 2 - count of predictors
+ggplot(fig2_data, 
+       aes(x = reorder(description, freq), # order by most to least common
+           y = freq)) +
+  geom_bar(stat="identity", width=0.25, fill = plot_color) +
+  coord_flip() +
+  scale_y_continuous(breaks=seq(1, 10, 1)) +
+  geom_hline(yintercept=seq(1, 10, 1), col="white", lwd=1) +
+  geom_hline(yintercept=0, col=plot_color) +
+  labs(x = NULL, 
+       y = "Number of times included") +
+  annotate("text", 
+           x = 10.5, 
+           y = 10, 
+           adj=1,  
+           family="serif",
+  label = c("Number of occurances of a predictor\nin 10 models of C difficile infection"))
+ggsave("figs/fig2.tiff")
+```
+
+
+```{r, fig3}
+# figure 3 - number of events (CDI infection) using a log axis vs. number of model coefficients
+ggplot(fig3_data, aes(x = n_preds, 
+                      y = n_event_total, 
+                      label = auth, 
+                      shape = validated)
+       ) +
+  geom_point() +
+  labs(y = fig3_header$value[6],        # events (CDI)
+       x = fig3_header$value[2]) +      # number of model coefficients
+  geom_text_repel(size = 3, 
+                  family = "Cambria", 
+                  color = 'black', 
+                  nudge_x = 0.5) +
+  scale_y_continuous(trans='log10') +   # log scale of events (CDI)
+  annotation_logticks(sides = "l") +
+  theme(legend.position="none") +       # legend explained in figure title
+  scale_shape_manual(values=c(17, 19)) +
+  annotate("text", 
+           x = 20, 
+           y = 50, 
+           adj=1,  
+           family="serif",
+  label = c("Triangles denote studies\nwithout a validation set"))
+ggsave("figs/fig3.tiff")
+```
+
+Tables 1 through 4 are produced next.
+
+```{r, tbl1}
+# read in tidied data
+(tbl1_data <- as_tibble(read_excel(data_path, 
+                                   "bystudy", 
+                                   skip = 1))
+ )  # NB: looking at predictors sheet
+
+tbl1_data_tidy <- tbl1_data %>%
+  relocate(cand_preds, .after = 1) %>%
+  mutate(.after = 7, 
+         epv = round(n_event_total / cand_preds, 1)) %>% # calc epv
+  mutate(.after = 5, 
+         spv = round(n_study_total / cand_preds, 1)) %>% # calc spv
+  select(1:9) # trim off other columns
+
+tbl1_header <- read_excel(data_path, 
+                          "bystudy") %>% 
+  names() %>%
+  as_tibble() %>%
+  add_row(.after = 1, value = "Candidate") %>%
+  add_row(.after = 4, value = "per candidate predictor") %>%
+  add_row(.after = 7, value = "per candidate predictor") %>%
+  slice(1:9)
+tbl1_header[c(4,5,7,8),] <- rep.int(c("Derivation set", "Total set"), 2)
+tbl1_header[1,] <- " "
+
+
+# correct for studies with multiple models
+tbl1_data_tidy[c(7,8),1] <- as_tibble(c("MGH", "UM"))
+tbl1_data_tidy[c(9,10),1] <- as_tibble(c("Index model (2019)", "Validation model (2021)"))
+tbl1_data_tidy[c(11,12),1] <- as_tibble(c("Model 1", "Model 2")) 
+
+# change headers to account for additional header rows
+tbl1_header[3,] <- "Final"
+tbl1_header[6,] <- "per candidate variable"
+tbl1_header[9,] <- "per candidate variable"
+
+options(knitr.kable.NA = '')
+as_tibble(tbl1_data_tidy) %>%
+  kable(escape = F, 
+        align = "lcccccccc", 
+        format.args = list(big.mark = ","), 
+        col.names = tbl1_header$value) %>%
+  kable_classic(full_width = F, html_font = "Cambria") %>%
+  pack_rows(paste0("Oh et al. (2018)", footnote_marker_alphabet(1)), 7, 8, escape = F) %>%
+  pack_rows(paste0("Tilton et al.", footnote_marker_alphabet(2)), 9, 10, escape = F) %>%
+  pack_rows("Voicu et al. (2021)", 11, 12, escape = F) %>%
+  kableExtra::footnote(alphabet_title = c("Bolded studies included multiple models"), 
+           alphabet = c("Created institution specific models.", "Validated prior model on external population.")) %>%
+  add_header_above(c(" " = 1, "Coefficients" = 2, "Samples" = 3, "Events (CDI)" = 3)) %>%
+  save_kable(file = "tbls/tbl1.pdf", density = 300)
+```
+
+```{r, tbl2}
+as_tibble(read_excel(data_path, 
+                     "t3", 
+                     skip = 1)) %>%
+  select(1:4) %>%
+  kable(align = "lccc", col.names = names(as_tibble(read_excel(data_path, "t3")[1,1:4]))) %>%
+  kable_classic(full_width = F, html_font = "Cambria") %>%
+  pack_rows(paste0("Oh et al. (2018)", footnote_marker_alphabet(1)), 7, 8, escape = F) %>%
+  pack_rows(paste0("Tilton et al.", footnote_marker_alphabet(2)), 9, 10, escape = F) %>%
+  pack_rows("Voicu et al. (2021)", 11, 12, escape = F) %>%
+  column_spec(1, width_min = "13em") %>%
+  column_spec(4, width_min = "13em") %>%
+  save_kable(file = "tbls/tbl2.pdf", density = 800)
+```
+
+```{r, tbl3}
+# Table 3 – Evaluating performance of risk prediction models
+## load in data for t3
+(tbl3_data <- as_tibble(read_excel(data_path, 
+                                 "t2", 
+                                 skip = 1)) %>%
+   select(-c("cal", "Live models")) %>%          # drop columns with no data
+   mutate(across(-1, ~ replace_na(.x, FALSE)))
+) 
+
+# group by column occurrence (exclude author)
+tbl3_data %>% 
+  summarize(across(-auth, sum)) %>%
+  pivot_longer(cols = 1:8, names_to = "Parameter", values_to = "Sum") %>%
+  add_column(.before = "Sum", desc = names(read_excel(data_path, 
+                                                      "t2")[1,2:9])) %>%
+  mutate(.after = "Sum",
+         perc = paste0(round((Sum / nrow(tbl3_data)), 2)*100, "%")) %>%
+  mutate(disp = paste0(Sum, " (", perc,")")) %>%
+  select(desc, disp) %>%
+  kable(align = "lc", col.names = c("Parameter", 
+                                    "Number of models (% of total)")) %>%
+  kable_classic(full_width = F, 
+                html_font = "Cambria") %>%
+  pack_rows("Validation", 1, 4) %>%
+  pack_rows("Performance metrics", 5,6) %>%
+  pack_rows("Calibration", 7,8) %>%
+  save_kable(file = "tbls/tbl3.pdf", density = 800)
+```
+
+```{r, tbl4}
+tbl4_data <- as_tibble(read_excel(data_path, 
+                                   "t1", 
+                                   skip = 1))
+
+tbl4_header <- as_tibble(read_excel(data_path, 
+                                    "t1")[1,])
+names(tbl4_header)[1] <- " "
+
+tbl4_data[c(7,8),1] <- as_tibble(c("MGH", "UM"))
+tbl4_data[c(9,10),1] <- as_tibble(c("Index model (2019)", "Validation model (2021)"))
+tbl4_data[c(11,12),1] <- as_tibble(c("Model 1", "Model 2"))
+
+as_tibble(tbl4_data) %>%
+  select(1,8:9) %>%
+  kable(escape = F, align = "lccc", format.args = list(big.mark = ","), 
+        col.names = c("", "Derivation", "Validation")) %>%
+  kable_classic(full_width = F, html_font = "Cambria") %>%
+  pack_rows(paste0("Oh et al. (2018)", footnote_marker_alphabet(1)), 7, 8, escape = F) %>%
+  pack_rows(paste0("Tilton et al.", footnote_marker_alphabet(2)), 9, 10, escape = F) %>%
+  pack_rows("Voicu et al. (2021)", 11, 12, escape = F) %>%
+  kableExtra::footnote(general = c("Performance was reported as by area under the ROC for all studies.", "Values rounded to two decimal places.", "NR = Not reported"),
+          alphabet_title = c("Bolded studies included multiple models"), 
+          alphabet = c("Created institution specific models.", "Validated prior model on external population.")) %>%
+  add_header_above(c(" " = 1, "Performance" = 2)) %>%
+  column_spec(1, width_min = "13em") %>%
+  save_kable(file = paste0("tbls/tbl4.pdf"), density = 300)
+```

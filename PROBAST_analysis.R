@@ -39,19 +39,27 @@ viz_column_names_v_app <- data_descriptions[c(12,25,46)]
 viz_column_names_over <- data_descriptions[c(75,76)]
 
 # select columns of interest for viz
-viz_column_names_v <- data.frame(col_keys = c("auth", 
-                                              "rob_participants_val", "rob_predictors_val", "rob_outcome_val", "rob_analysis_val",
-                                              "app_participants_val", "app_predictors_val", "app_outcome_val", 
+viz_column_names_v <- data.frame(col_keys = c("auth", "rob_participants_val", 
+                                              "rob_predictors_val", "rob_outcome_val", 
+                                              "rob_analysis_val", "app_participants_val", 
+                                              "app_predictors_val", "app_outcome_val", 
                                               "rob_overall", "app_overall"),
-                                 grp = c("Study", "Risk of bias", "Risk of bias", "Risk of bias", "Risk of bias", "Applicability", "Applicability", "Applicability", "Overall", "Overall"),
-                                 domain = c("", "Participants","Predictors","Outcome", "Analysis","Participants","Predictors","Outcome", "ROB", "Applicability"),
+                                 grp = c("Study", "Risk of bias", 
+                                         "Risk of bias", "Risk of bias", 
+                                         "Risk of bias", "Applicability", 
+                                         "Applicability", "Applicability", 
+                                         "Overall", "Overall"),
+                                 domain = c("", "Participants","Predictors",
+                                            "Outcome", "Analysis",
+                                            "Participants","Predictors",
+                                            "Outcome", "ROB", "Applicability"),
                                  stringsAsFactors = FALSE)
                                  
 # create tidied data 
 tidy_data <- raw_data %>% 
   select(-c(1)) %>% #remove timestamp from google forms
   clean_names() %>%
-  filter(which_reviewer_are_you == "Will") #forms had same data for both reviewers
+  filter(which_reviewer_are_you == "Will") #forms should have same data for both reviewers
 
 # data viz schemea
 tidy_data <- tidy_data %>%
@@ -171,9 +179,12 @@ ggsave(paste0(figure1_filename, "_preview", ".png"),
 
 # Combined view of risk of bias (a) and concern for applicability (b)
 (f2_panel_a <- rob_summary_dat_val %>% # panel a - risk of bias
-  rob_summary(tool = "Generic", weighted = FALSE) + scale_x_discrete(labels = function(x) str_wrap(x, width = 50)))
+  rob_summary(tool = "Generic", weighted = FALSE) + 
+    scale_x_discrete(labels = function(x) str_wrap(x, width = 50)))
+
 (f2_panel_b <- app_summary_dat_val %>% # panel b - concerns for applicability
-  rob_summary(tool = "Generic", weighted = FALSE) + scale_x_discrete(labels = function(x) str_wrap(x, width = 50))) 
+  rob_summary(tool = "Generic", weighted = FALSE) + 
+    scale_x_discrete(labels = function(x) str_wrap(x, width = 50))) 
 
 # Combine panel a and b to form final figure
 (f2 <- plot_grid(f2_panel_a, f2_panel_b, 

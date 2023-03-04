@@ -20,8 +20,7 @@ library(ggrepel)
 
 # for reproducibility, variable paths are copied below
 file_loc <- "~/Desktop/Research/Deshpande Group (C difficile)/CDI Prediction Model Meta Analysis/Systematic Review of Methodology : Reporting/Figures/Analysis"
-data_path <- "../figures/2023-01-03_Figure1_tidyData.xlsx"
-
+data_path <- "../data/2023-03-04_WMP_tidyData.xlsx"
 
 # set working directory to file source for relative paths
 setwd(file_loc)
@@ -75,7 +74,8 @@ ggplot(fig2_data,
            y = 10, 
            adj=1,  
            family="serif",
-  label = c("Number of occurances of a predictor\nin 10 models of C difficile infection"))
+  label = c("Number of occurances of a predictor\nin 12 models of C difficile infection")) +
+  theme(plot.background = element_rect(fill = "#FFFFFF"))
 ggsave("figs/fig2.tiff")
 ```
 
@@ -84,8 +84,8 @@ ggsave("figs/fig2.tiff")
 # figure 3 - number of events (CDI infection) using a log axis vs. number of model coefficients
 ggplot(fig3_data, aes(x = n_preds, 
                       y = n_event_total, 
-                      label = auth, 
-                      shape = validated)
+                      #shape = validated,
+                      label = auth)
        ) +
   geom_point() +
   labs(y = fig3_header$value[6],        # events (CDI)
@@ -98,12 +98,14 @@ ggplot(fig3_data, aes(x = n_preds,
   annotation_logticks(sides = "l") +
   theme(legend.position="none") +       # legend explained in figure title
   scale_shape_manual(values=c(17, 19)) +
-  annotate("text", 
-           x = 20, 
-           y = 50, 
-           adj=1,  
-           family="serif",
-  label = c("Triangles denote studies\nwithout a validation set"))
+  theme(plot.background = element_rect(fill = "#FFFFFF"))
+  # annotate("text", 
+  #          x = 20, 
+  #          y = 50, 
+  #          adj=1,  
+  #          family="serif",
+  # label = c("Triangles denote studies\nwithout a validation set")
+  # )
 ggsave("figs/fig3.tiff")
 ```
 
@@ -183,7 +185,7 @@ as_tibble(read_excel(data_path,
 (tbl3_data <- as_tibble(read_excel(data_path, 
                                  "t2", 
                                  skip = 1)) %>%
-   select(-c("cal", "Live models")) %>%          # drop columns with no data
+   select(-c("cal", "livemodels")) %>%          # drop columns with no data
    mutate(across(-1, ~ replace_na(.x, FALSE)))
 ) 
 
